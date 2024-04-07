@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Detection</title>
+</head>
+<body>
+    <h1>Face Detection</h1>
+    <video id="videoElement" autoplay></video>
+    <canvas id="canvasElement"></canvas>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/opencv.js/4.5.3/opencv.js"></script>
+    <script>
+        const videoElement = document.getElementById("videoElement");
+        const canvasElement = document.getElementById("canvasElement");
+        const ctx = canvasElement.getContext("2d");
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function (stream) {
+                videoElement.srcObject = stream;
+            })
+            .catch(function (error) {
+                console.log("Error accessing webcam:", error);
+            });
+
+        videoElement.addEventListener("play", function () {
+            const videoWidth = videoElement.videoWidth;
+            const videoHeight = videoElement.videoHeight;
+
+            canvasElement.width = videoWidth;
+            canvasElement.height = videoHeight;
+
+            function detectFace() {
+                ctx.drawImage(videoElement, 0, 0, videoWidth, videoHeight);
+                const imageData = ctx.getImageData(0, 0, videoWidth, videoHeight);
+
+                const src = cv.matFromImageData(imageData);
+                const gray = new cv.Mat();
+                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+
+                const faceCascade = new cv.CascadeClassifier();
+                faceCascade.load("haarcascade_frontalface_default.xml");
+
+                const faces = new cv.RectVector();
+                const scaleFactor = 1.1;
+                const minNeighbors = 3;
+                const minSize = new cv.Size(30, 30);
+                faceCascade.detectMultiScale(gray, faces, scaleFactor, minNeighbors, 0, minSize);
+
+                for (let i = 0; i < faces.size(); ++i) {
+                    const faceRect = faces.get(i);
+                    const point1 = new cv.Point(faceRect.x, faceRect.y);
+                    const point2 = new cv.Point(faceRect.x + faceRect.width, faceRect.y + faceRect.height);
+                    cv.rectangle(src, point1, point2, [255, 0, 0, 255]);
+                }
+
+                cv.imshow(canvasElement, src);
+
+                src.delete();
+                gray.delete();
+                faceCascade.delete();
+                faces.delete();
+
+                requestAnimationFrame(detectFace);
+            }
+
+            detectFace();
+        });
+    </script>
+</body>
+</html>
